@@ -3,6 +3,7 @@ const ReviewModel = require('../models/review.model');
 const BookingModel = require('../models/booking.model');
 const UserModel = require('../models/user.model');
 const workerModel = require('../models/worker.model');
+const ServiceModel = require('../models/service.model');
 
 const ReviewController = {
   submitReview: async (req, res) => {
@@ -294,7 +295,97 @@ const ReviewController = {
       console.error('Error fetching top reviews:', error);
       res.status(500).json({ message: error.message });
     }
-  }
+  },
+
+  GetAdminReviews: async (req, res) => {
+    try {
+      // Get all reviews with populated references
+      const reviews = await ReviewModel.find()
+        .populate({
+          path: 'booking',
+          populate: {
+            path: 'serviceDetails.service',
+            model: 'ServiceCategory',
+            select: 'name'
+          }
+        })
+        .populate('customer', 'name')
+        .populate({
+          path: 'worker',
+          model: 'WorkerProfile',
+          select: 'user',
+          populate: {
+            path: 'user',
+            model: 'User',
+            select: 'name'
+          }
+        })
+        .sort({ createdAt: -1 })
+        .lean();
+
+
+      const formattedReviews = reviews.map(review => ({
+        id: review._id,
+        customerName: review.customer?.name || 'Unknown Customer',
+        workerName: review.worker?.user?.name || 'Unknown Worker',
+        service: review.booking?.serviceDetails?.service?.name || 'Unknown Service',
+        rating: review.rating,
+        comment: review.comment || '',
+        date: review.createdAt.toISOString().split('T')[0],
+        status: getReviewStatus(review)
+      }));
+
+      res.status(200).json({ reviews: formattedReviews });
+    } catch (error) {
+      console.error('Error in GetAdminReviews:', error);
+      res.status(500).json({ message: error.message });
+    }
+  },
+  UpdateReviewStatus: async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { status } = req.body;
+
+      if (!reviewId || !status) {
+        return res.status(400).json({ message: 'Review ID and status are required' });
+      }
+
+      // Validate status
+      const validStatuses = ['approved', 'flagged', 'deleted'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: 'Invalid status' });
+      }
+
+      // Find the review
+      const review = await ReviewModel.findById(reviewId);
+      if (!review) {
+        return res.status(404).json({ message: 'Review not found' });
+      }
+
+      // Update review status
+      if (status === 'deleted') {
+        review.isApproved = false; // Soft delete
+      } else if (status === 'approved') {
+        review.isApproved = true; // Approve the review
+      } else if (status === 'flagged') {
+        review.isApproved = false; // Flag the review
+      }
+
+      await review.save();
+
+      res.status(200).json({ message: 'Review status updated successfully', review });
+    } catch (error) {
+      console.error('Error updating review status:', error);
+      res.status(500).json({ message: error.message });
+    }
+  },
+  // Helper function to determine review status
+
 }
 
+function getReviewStatus(review) {
+  if (!review.isActive) return 'deleted';
+  if (!review.isApproved) return 'pending';
+  return 'approved';
+}
 module.exports = ReviewController;

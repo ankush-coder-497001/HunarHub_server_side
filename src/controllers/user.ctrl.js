@@ -1,4 +1,5 @@
 const userModel = require("../models/user.model");
+const workerModel = require("../models/worker.model");
 const EmailService = require('../services/email.svc')
 const bcrypt = require("bcryptjs");
 const UserController = {
@@ -9,9 +10,10 @@ const UserController = {
         return res.status(400).json({ message: "Please fill all the fields" });
       }
 
-      if (role !== "worker" && role !== "customer") {
+      if (role !== "worker" && role !== "customer" && role !== "admin") {
         return res.status(400).json({ message: "Please select a valid role" });
-      } const existingUser = await userModel.findOne({ phone });
+      }
+      const existingUser = await userModel.findOne({ phone });
       if (existingUser) {
         return res.status(400).json({ message: "This phone number is already registered" });
       }
@@ -256,11 +258,41 @@ const UserController = {
   },
   GetAllUsers: async (req, res) => {
     try {
-      const users = await userModel.find().select("-password -otp -otpExpires");
-      if (!users) {
-        return res.status(400).json({ message: "No users found" });
+      const users = await userModel.find({ role: "customer" })
+        .select("name email phone isBlocked isActive createdAt")
+        .lean();
+
+      if (!users?.length) {
+        return res.status(200).json({ customers: [] });
       }
-      res.status(200).json({ users });
+
+      const formattedUsers = users.map(user => ({
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        status: user.isBlocked ? 'blocked' : (user.isActive ? 'active' : 'inactive'),
+        joinedDate: user.createdAt.toISOString().split('T')[0]
+      }));
+
+      res.status(200).json({ customers: formattedUsers });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ message: error.message });
+    }
+  },
+  UpdateStatus: async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { isBlocked } = req.body;
+      if (!userId || typeof isBlocked !== 'boolean') {
+        return res.status(400).json({ message: "Invalid request" });
+      }
+      const user = await userModel.findByIdAndUpdate(userId, { isBlocked }, { new: true });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.status(200).json({ message: `User ${isBlocked ? 'blocked' : 'unblocked'} successfully`, user });
     } catch (error) {
       console.log(error);
       res.status(500).json({ message: error.message });

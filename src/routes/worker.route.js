@@ -16,7 +16,8 @@ router.delete('/delete-profile', Auth, RoleValidation(['worker']), workerControl
 router.post('/set-service-areas', workerController.setServiceAreas);
 router.get('/stats', Auth, RoleValidation(['worker']), workerController.getWorkerStats);
 router.get('/top-workers', Auth, workerController.TopWorkers);
+router.put('/:userId/verify', Auth, RoleValidation(['admin']), workerController.VerifyWorker);
 //admin routes
-router.get('/get-all-workers', Auth, RoleValidation(['admin', 'worker']), workerController.getAllWorkers);
+router.get('/get-all-workers', Auth, RoleValidation(['admin', 'worker']), workerController.GetAllWorkers);
 
 module.exports = router;

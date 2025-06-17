@@ -239,13 +239,42 @@ const WorkerController = {
       res.status(500).json({ message: error.message });
     }
   },
-  getAllWorkers: async (req, res) => {
+  GetAllWorkers: async (req, res) => {
     try {
-      const workers = await workerModel.find().populate('user').populate('services').populate('reviews');
-      if (!workers || workers.length === 0) {
-        return res.status(404).json({ message: "No workers found" });
+      // First get all worker users
+      const workerUsers = await userModel.find({ role: "worker" })
+        .select("name email phone isBlocked isActive createdAt")
+        .lean();
+
+      if (!workerUsers?.length) {
+        return res.status(200).json({ workers: [] });
       }
-      res.status(200).json({ message: "Workers fetched successfully", workers });
+
+      // Get all worker profiles
+      const workerProfiles = await workerModel.find({
+        user: { $in: workerUsers.map(w => w._id) }
+      }).lean();
+
+      // Create a map of worker profiles by user ID for easy lookup
+      const profileMap = new Map(workerProfiles.map(profile => [profile.user.toString(), profile]));
+
+      const formattedWorkers = workerUsers.map(user => {
+        const profile = profileMap.get(user._id.toString());
+        return {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          status: user.isBlocked ? 'blocked' : (profile?.isVerified ? 'verified' : 'pending'),
+          joinedDate: user.createdAt.toISOString().split('T')[0],
+          rating: profile?.rating || 0,
+          idProof: profile?.IdProof || '',
+          isVerified: profile?.isVerified || false,
+          isActive: user.isActive
+        };
+      });
+
+      res.status(200).json({ workers: formattedWorkers });
     } catch (error) {
       console.log(error);
       res.status(500).json({ message: error.message });
@@ -572,6 +601,41 @@ const WorkerController = {
       res.status(500).json({
         success: false,
         message: error.message || "Error fetching top workers"
+      });
+    }
+  },
+  VerifyWorker: async (req, res) => {
+    try {
+      const { userId } = req.params;
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "User ID is required"
+        });
+      }
+
+      const worker = await workerModel.findOne({ user: userId });
+      if (!worker) {
+        return res.status(404).json({
+          success: false,
+          message: "Worker profile not found"
+        });
+      }
+
+      // Update the worker's verification status
+      worker.isVerified = true;
+      await worker.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Worker verified successfully",
+        worker
+      });
+    } catch (error) {
+      console.error("Error verifying worker:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Error verifying worker"
       });
     }
   }

@@ -18,7 +18,9 @@ router.get('/profile', Auth, userController.profile);
 router.put('/profile', Auth, handleImageUpload('profileImage'), userController.UpdateProfile);
 router.put('/update-location', Auth, userController.UpdateLocation);
 router.put('/delete-account', Auth, userController.DeleteAccount);
+router.put('/:userId/status', Auth, RoleValidation(['admin']), userController.UpdateStatus);
+
 //admin routes
-router.get('/all-users', Auth, RoleValidation(['admin']), userController.GetAllUsers);
+router.get('/customers', Auth, RoleValidation(['admin']), userController.GetAllUsers);
 
 module.exports = router;

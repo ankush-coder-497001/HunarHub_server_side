@@ -411,7 +411,173 @@ const BookingController = {
       console.log(error);
       res.status(500).json({ message: error.message });
     }
-  }
+  },
+  getDashboardStats: async (req, res) => {
+    try {
+      const { timeRange = 'week' } = req.query;
+      const now = new Date();
+      let startDate;
+      let labels;
+      let groupByFormat;
+
+      // Set time range parameters
+      switch (timeRange) {
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+          groupByFormat = '%w'; // Day of week (0-6)
+          break;
+        case 'month':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+          groupByFormat = '%U'; // Week number
+          break;
+        case 'quarter':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          labels = ['January', 'February', 'March'];
+          groupByFormat = '%m'; // Month
+          break;
+        case 'year':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          groupByFormat = '%m'; // Month
+          break;
+        default:
+          return res.status(400).json({ message: 'Invalid time range' });
+      }
+
+      // Get users count
+      const [customersCount, workersCount] = await Promise.all([
+        UserModel.countDocuments({ role: 'customer', createdAt: { $gte: startDate } }),
+        UserModel.countDocuments({ role: 'worker', createdAt: { $gte: startDate } })
+      ]);
+
+      // Get verified workers count
+      const verifiedWorkersCount = await WorkerModel.countDocuments({
+        isVerified: true,
+        createdAt: { $gte: startDate }
+      });
+
+      // Get completed jobs and revenue
+      const bookingStats = await BookingModel.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate },
+            status: 'completed'
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalBookings: { $sum: 1 },
+            totalRevenue: { $sum: '$serviceDetails.price' }
+          }
+        }
+      ]);
+
+      // Get revenue by time period
+      const revenueByPeriod = await BookingModel.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate },
+            status: 'completed'
+          }
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: `%Y-${groupByFormat}`, date: '$createdAt' } },
+            revenue: { $sum: '$serviceDetails.price' }
+          }
+        },
+        {
+          $sort: { '_id': 1 }
+        }
+      ]);
+
+      // Calculate revenue change percentage
+      const previousPeriodStart = new Date(startDate.getTime() - (startDate.getTime() - now.getTime()));
+      const previousPeriodRevenue = await BookingModel.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: previousPeriodStart, $lt: startDate },
+            status: 'completed'
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$serviceDetails.price' }
+          }
+        }
+      ]);
+
+      const currentRevenue = bookingStats[0]?.totalRevenue || 0;
+      const prevRevenue = previousPeriodRevenue[0]?.total || 0;
+      const revenueChange = prevRevenue === 0 ? 100 : ((currentRevenue - prevRevenue) / prevRevenue) * 100;
+
+      // Prepare response
+      const stats = {
+        timeRange,
+        labels,
+        revenue: revenueByPeriod.map(period => period.revenue),
+        users: {
+          customers: customersCount,
+          workers: workersCount
+        },
+        stats: [
+          {
+            title: 'Total Users',
+            value: `${customersCount + workersCount}`,
+            change: '+7%',
+            type: 'increase',
+            icon: '👥',
+            details: {
+              customers: customersCount,
+              workers: workersCount
+            }
+          },
+          {
+            title: 'Active Workers',
+            value: `${workersCount}`,
+            change: '+12%',
+            type: 'increase',
+            icon: '👨‍🔧',
+            details: {
+              verified: verifiedWorkersCount,
+              pending: workersCount - verifiedWorkersCount
+            }
+          },
+          {
+            title: 'Completed Jobs',
+            value: `${bookingStats[0]?.totalBookings || 0}`,
+            change: '+23%',
+            type: 'increase',
+            icon: '✅',
+            details: {
+              [timeRange]: bookingStats[0]?.totalBookings || 0,
+              total: bookingStats[0]?.totalBookings || 0
+            }
+          },
+          {
+            title: 'Revenue',
+            value: `₹${bookingStats[0]?.totalRevenue || 0}`,
+            change: `${revenueChange > 0 ? '+' : ''}${revenueChange.toFixed(1)}%`,
+            type: revenueChange >= 0 ? 'increase' : 'decrease',
+            icon: '💰',
+            details: {
+              [timeRange]: `$${currentRevenue}`,
+              pending: '$0'
+            }
+          }
+        ]
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error('Dashboard stats error:', error);
+      res.status(500).json({ message: 'Error fetching dashboard stats' });
+    }
+  },
 }
 
 module.exports = BookingController;

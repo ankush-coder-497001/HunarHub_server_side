@@ -14,5 +14,6 @@ router.get('/:bookingId', Auth, BookingCOntroller.getBookingById);
 router.post('/reschedule/:bookingId', Auth, BookingCOntroller.rescheduleBooking);
 router.get('/all', Auth, RoleValidation('admin'), BookingCOntroller.getAllBookings);
 router.post('/verify-job/:bookingId', Auth, BookingCOntroller.verifyJobCode);
+router.get('/stats/dashboard', Auth, RoleValidation('admin'), BookingCOntroller.getDashboardStats);
 
 module.exports = router

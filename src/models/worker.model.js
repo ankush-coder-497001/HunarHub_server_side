@@ -18,6 +18,7 @@ const workerProfileSchema = new mongoose.Schema({
     hourlyRate: { type: Number },
     fixedRate: { type: Number },
   },
+  isVerified: { type: Boolean, default: false }, // Whether worker is verified
   gallery: [String],
   ServiceArea: {
     name: { type: String },
