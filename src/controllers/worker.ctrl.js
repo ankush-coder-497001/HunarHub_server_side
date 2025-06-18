@@ -203,6 +203,7 @@ const WorkerController = {
       }
       const worker = await workerModel.findById(id).populate('user').populate('services').populate({
         path: 'reviews',
+        match: { isApproved: true },
         populate: [
           {
             path: 'booking'
@@ -229,7 +230,10 @@ const WorkerController = {
       if (!userId) {
         return res.status(400).json({ message: "User ID is required" });
       }
-      const worker = await workerModel.findOne({ user: userId }).populate('user').populate('services').populate('reviews');
+      const worker = await workerModel.findOne({ user: userId }).populate('user').populate('services').populate({
+        path: 'reviews',
+        match: { isApproved: true },
+      });
       if (!worker) {
         return res.status(404).json({ message: "Worker profile not found" });
       }

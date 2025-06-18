@@ -157,10 +157,10 @@ const BookingController = {
         select: 'user ProfileImage rating profession',
         populate: {
           path: 'user',
-          select: 'name email'
+          select: 'name email profileImage',
         }
       })
-        .populate('serviceDetails.service').sort({ createdAt: -1 });
+        .populate('serviceDetails.service').populate('customer', 'name email profileImage').sort({ createdAt: -1 });
       if (!bookings || bookings.length === 0) {
         return res.status(404).json({ message: 'No bookings found' });
       }
@@ -182,7 +182,7 @@ const BookingController = {
       }
       const bookings = await BookingModel.find({ worker: worker._id })
         .populate('customer')
-        .populate('serviceDetails.service').sort({ createdAt: -1 });
+        .populate('serviceDetails.service').populate('worker', 'name email ProfileImage').sort({ createdAt: -1 });
       if (!bookings || bookings.length === 0) {
         return res.status(404).json({ message: 'No bookings found' });
       }

@@ -58,7 +58,7 @@ const SearchController = {
       })
         .populate('user')
         .populate('services')
-        .select('user ProfileImage profession experience rating reviewsCount ServiceArea pricing gallery availability workSchedule ServiceRadius isActive')
+        .select('user ProfileImage profession experience rating reviewsCount ServiceArea pricing gallery availability workSchedule ServiceRadius isActive isVerified')
         .sort({ reviewsCount: -1 });      // Calculate distances for each worker
       const workersWithDistance = workers.map(worker => {
         const workerDoc = worker.toObject();

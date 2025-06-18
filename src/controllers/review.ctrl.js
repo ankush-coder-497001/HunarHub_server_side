@@ -116,7 +116,7 @@ const ReviewController = {
       if (!workerProfile) {
         return res.status(404).json({ message: 'Worker profile not found' });
       }
-      const reviews = await ReviewModel.find({ worker: workerProfile._id })
+      const reviews = await ReviewModel.find({ worker: workerProfile._id, isApproved: true })
         .populate('customer')
         .populate({
           path: 'booking',
@@ -160,7 +160,7 @@ const ReviewController = {
       const reviews = await ReviewModel.aggregate([
         {
           $match: {
-            isActive: true
+            isApproved: true
           }
         },
         {

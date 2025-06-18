@@ -297,6 +297,22 @@ const UserController = {
       console.log(error);
       res.status(500).json({ message: error.message });
     }
+  },
+  GetAccountBlockStatus: async (req, res) => {
+    try {
+      const { userId } = req.user;
+      if (!userId) {
+        return res.status(400).json({ message: "User not found" });
+      }
+      const user = await userModel.findById(userId).select("isBlocked");
+      if (!user) {
+        return res.status(400).json({ message: "User not found" });
+      }
+      res.status(200).json({ isBlocked: user.isBlocked });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ message: error.message });
+    }
   }
 }
 

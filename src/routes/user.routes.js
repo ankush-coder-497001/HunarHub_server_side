@@ -22,5 +22,6 @@ router.put('/:userId/status', Auth, RoleValidation(['admin']), userController.Up
 
 //admin routes
 router.get('/customers', Auth, RoleValidation(['admin']), userController.GetAllUsers);
+router.get('/blocked', Auth, userController.GetAccountBlockStatus);
 
 module.exports = router;
