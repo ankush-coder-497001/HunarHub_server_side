@@ -2,6 +2,7 @@ const BookingModel = require('../models/booking.model');
 const UserModel = require('../models/user.model');
 const WorkerModel = require('../models/worker.model');
 const ServiceModel = require('../models/service.model');
+const chatModel = require('../models/chat.model');
 
 const BookingController = {
   createBooking: async (req, res) => {
@@ -195,7 +196,6 @@ const BookingController = {
   },
   updateBookingStatus: async (req, res) => {
     try {
-      console.log('updateBookingStatus called');
       const { bookingId } = req.params;
       const { status } = req.body;
       console.log('Booking ID:', bookingId);
@@ -223,11 +223,21 @@ const BookingController = {
       if (status === 'accepted') {
       } else if (status === 'completed') {
         booking.isActive = false; // Mark booking as inactive if completed
+        const chat = await chatModel.findOneAndDelete({ booking: booking._id });
+        if (chat) {
+          console.log('Chat deleted for completed booking:', booking._id);
+        }
       } else if (status === 'cancelled') {
         booking.status = 'cancelled';
         booking.isActive = false; // Mark booking as inactive if cancelled
         await booking.save();
         // await emailServices.BookingCancellationEmail(booking.customer.email, BookingDataForEMail);
+        const chat = await chatModel.findOneAndDelete({ booking: booking._id });
+        // If a chat exists, delete it
+
+        if (chat) {
+          console.log('Chat deleted for cancelled booking:', booking._id);
+        }
         return res.status(200).json({ message: 'Booking cancelled successfully' });
       }
       await booking.save();
