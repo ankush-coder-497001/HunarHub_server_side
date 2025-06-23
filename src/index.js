@@ -261,6 +261,9 @@ mongoose.connect(process.env.MONGO_STRING).then((res) => {
   console.log('MongoDB connected');
   // Import and start the booking cleanup job
   require('./jobs/bookingCleanup')
+  require('./jobs/acceptedReminder30Min');
+  require('./jobs/acceptedReminder1Hour');
+  require('./jobs/overdueRequestedReminder');
 }).catch((err) => {
   console.log('MongoDB connection error:', err);
 });

@@ -34,6 +34,12 @@ const UserController = {
         return res.status(400).json({ message: "Error creating user" });
       }
       await newUser.save();
+      EmailService.WelcomeEmail(
+        email,
+        name,
+      ).catch((error) => {
+        console.error('Error sending welcome email:', error);
+      });
       res.status(201).json({ message: "User registered successfully", user: newUser });
     } catch (error) {
       console.log(error);

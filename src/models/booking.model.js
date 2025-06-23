@@ -31,7 +31,9 @@ const bookingSchema = new mongoose.Schema({
   },
 
   customerNotes: String,
-
+  acceptedReminder30Min: { type: Boolean, default: false },
+  acceptedReminder1Hour: { type: Boolean, default: false },
+  overdueRequestedReminder: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true },
   rated: { type: Boolean, default: false },
 }, { timestamps: true });

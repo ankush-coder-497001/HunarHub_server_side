@@ -3,7 +3,7 @@ const UserModel = require('../models/user.model');
 const WorkerModel = require('../models/worker.model');
 const ServiceModel = require('../models/service.model');
 const chatModel = require('../models/chat.model');
-
+const emailServices = require('../services/email.svc')
 const BookingController = {
   createBooking: async (req, res) => {
     const session = await BookingModel.startSession();
@@ -109,7 +109,18 @@ const BookingController = {
       await session.commitTransaction();
       session.endSession();
 
-
+      await emailServices.BookingRequestedEmail(
+        worker.user.email, {
+        name: customer.name,
+        service: service.name,
+        date: bookingDate.toISOString().split('T')[0],
+        time,
+        location,
+        customerNotes,
+      }
+      ).catch((error) => {
+        console.error('Error sending booking request email:', error);
+      });
 
       res.status(201).json({ message: 'Booking created successfully', booking: booking[0] });
 
@@ -198,8 +209,6 @@ const BookingController = {
     try {
       const { bookingId } = req.params;
       const { status } = req.body;
-      console.log('Booking ID:', bookingId);
-      console.log('Status:', status);
       if (!bookingId) {
         return res.status(400).json({ message: 'Booking ID is required' });
       }
@@ -211,16 +220,19 @@ const BookingController = {
         return res.status(404).json({ message: 'Booking not found' });
       }
       booking.status = status;
-
-      const BookingDataForEMail = {
-        name: booking.customer.name,
-        service: booking.serviceDetails.service.name,
-        date: booking.date,
-        time: booking.time,
-        location: booking.location,
-        customerNotes: booking.customerNotes,
-      }
       if (status === 'accepted') {
+        await emailServices.BookingConfirmationEmail(
+          booking.customer.email, {
+          name: booking.customer.name,
+          service: booking.serviceDetails.service.name,
+          date: booking.date.toISOString().split('T')[0],
+          time: booking.time,
+          location: booking.location,
+          customerNotes: booking.customerNotes,
+        }
+        ).catch((error) => {
+          console.error('Error sending booking confirmation email:', error);
+        });
       } else if (status === 'completed') {
         booking.isActive = false; // Mark booking as inactive if completed
         const chat = await chatModel.findOneAndDelete({ booking: booking._id });
@@ -229,15 +241,24 @@ const BookingController = {
         }
       } else if (status === 'cancelled') {
         booking.status = 'cancelled';
-        booking.isActive = false; // Mark booking as inactive if cancelled
+        booking.isActive = false;
         await booking.save();
-        // await emailServices.BookingCancellationEmail(booking.customer.email, BookingDataForEMail);
         const chat = await chatModel.findOneAndDelete({ booking: booking._id });
-        // If a chat exists, delete it
-
         if (chat) {
           console.log('Chat deleted for cancelled booking:', booking._id);
         }
+        await emailServices.BookingCancellationEmail(
+          booking.customer.email, {
+          name: booking.customer.name,
+          service: booking.serviceDetails.service.name,
+          date: booking.date.toISOString().split('T')[0],
+          time: booking.time,
+          location: booking.location,
+          customerNotes: booking.customerNotes,
+        }
+        ).catch((error) => {
+          console.error('Error sending booking cancellation email:', error);
+        });
         return res.status(200).json({ message: 'Booking cancelled successfully' });
       }
       await booking.save();

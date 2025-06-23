@@ -3,7 +3,8 @@ const cron = require('node-cron');
 const Booking = require('../models/booking.model')
 
 
-// 🕒 Run every hour at minute 0
+// this job runs every hour to delete bookings that are in 'requested' status and older than 24 hours
+// it helps to keep the database clean and free of stale bookings
 cron.schedule('0 * * * *', async () => {
   const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
 
