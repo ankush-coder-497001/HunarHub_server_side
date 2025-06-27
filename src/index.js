@@ -86,7 +86,6 @@ io.use(async (socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
 
   socket.on('join_chat', async ({ bookingId, userId }) => {
     try {
@@ -269,7 +268,7 @@ mongoose.connect(process.env.MONGO_STRING).then((res) => {
 });
 
 //starting the server
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 8001;
 
 httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

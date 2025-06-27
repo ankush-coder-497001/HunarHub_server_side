@@ -31,16 +31,10 @@ const SearchController = {
 
       const latitude = parseFloat(lat);
       const longitude = parseFloat(lng);
-      const radiusInMeters = parseFloat(radius) * 1000; if (isNaN(latitude) || isNaN(longitude) || isNaN(radiusInMeters)) {
-        return res.status(400).json({ message: "Invalid parameters" });
-      }
+      const radiusInMeters = parseFloat(radius) * 1000;
 
-      // Drop all existing indexes and create a fresh one
-      try {
-        await WorkerModel.collection.dropIndexes();
-        await WorkerModel.collection.createIndex({ "ServiceArea.location": "2dsphere" });
-      } catch (indexError) {
-        console.error("Index operation error:", indexError);
+      if (isNaN(latitude) || isNaN(longitude) || isNaN(radiusInMeters)) {
+        return res.status(400).json({ message: "Invalid parameters" });
       }
 
       const workers = await WorkerModel.find({
@@ -59,10 +53,11 @@ const SearchController = {
         .populate('user')
         .populate('services')
         .select('user ProfileImage profession experience rating reviewsCount ServiceArea pricing gallery availability workSchedule ServiceRadius isActive isVerified')
-        .sort({ reviewsCount: -1 });      // Calculate distances for each worker
+        .sort({ reviewsCount: -1 });
+
+      // Calculate distances for each worker
       const workersWithDistance = workers.map(worker => {
         const workerDoc = worker.toObject();
-        // Calculate distance using coordinates
         const distance = calculateDistance(
           latitude,
           longitude,
@@ -71,7 +66,7 @@ const SearchController = {
         );
         return {
           ...workerDoc,
-          distance // distance in km
+          distance
         };
       });
 
@@ -81,7 +76,6 @@ const SearchController = {
       res.status(500).json({ message: "Internal server error" });
     }
   },
-
   searchWorkers: async (req, res) => {
     try {
       const { search, services } = req.query;

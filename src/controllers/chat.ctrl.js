@@ -3,6 +3,7 @@ const Booking = require('../models/booking.model');
 const User = require('../models/user.model');
 const WorkerProfile = require('../models/worker.model');
 const mongoose = require('mongoose');
+const workerModel = require('../models/worker.model');
 
 const chatController = {
   // Initialize or get chat for a booking
@@ -16,11 +17,6 @@ const chatController = {
         return res.status(401).json({ message: 'User not authenticated' });
       }
 
-      console.log('Initializing chat:', {
-        bookingId,
-        userId: userId.toString(),
-        userType: req.user?.type
-      });
 
       if (!mongoose.Types.ObjectId.isValid(bookingId)) {
         return res.status(400).json({ message: 'Invalid booking ID format' });
@@ -105,7 +101,7 @@ const chatController = {
         }        // Create new chat with validated data
         try {
           const chatData = {
-            booking: mongoose.Types.ObjectId(bookingId),
+            booking: new mongoose.Types.ObjectId(bookingId),
             worker: booking.worker._id,
             customer: booking.customer._id,
             messages: []
@@ -297,25 +293,27 @@ const chatController = {
   },
 
   // Get all chats for a user
+  // ...existing code...
+
   getAllUserChats: async (req, res) => {
     try {
-      const userId = req.user._id;
+      // Use a consistent user ID property
+      const userId = req.user.userId || req.user._id;
       const { status = 'active' } = req.query;
 
-      // Find worker profile if exists
-      const workerProfile = await User.findById(userId).populate('workerProfile');
+      // Find worker profile for this user, if any
+      const workerProfile = await WorkerProfile.findOne({ user: userId });
+
+      // Build $or array for customer and worker chats
+      const orConditions = [{ customer: userId }];
+      if (workerProfile) {
+        orConditions.push({ worker: workerProfile._id });
+      }
 
       const query = {
         status,
-        $or: [
-          { customer: userId }
-        ]
+        $or: orConditions
       };
-
-      // Add worker condition if user has a worker profile
-      if (workerProfile?.workerProfile) {
-        query.$or.push({ worker: workerProfile.workerProfile._id });
-      }
 
       const chats = await Chat.find(query)
         .populate([
@@ -360,27 +358,54 @@ const chatController = {
     }
   },
 
-  // Mark messages as read
+  // ...existing code...
+
+  // ...existing code...
+
   markMessagesAsRead: async (req, res) => {
     try {
       const { chatId } = req.params;
       const { messageIds } = req.body;
-      const userId = req.user._id;
+      const userId = req.user.userId || req.user._id;
 
-      const chat = await Chat.findById(chatId);
+      // Debug: log incoming data
+
+      const chat = await Chat.findById(chatId)
+        .populate([
+          { path: 'worker', select: 'user' },
+          { path: 'customer', select: '_id' }
+        ]);
       if (!chat) {
+        console.error('Chat not found for chatId:', chatId);
         return res.status(404).json({ message: 'Chat not found' });
       }
 
-      // Verify user has access to this chat
-      const isWorker = chat.worker && chat.worker.toString() === userId.toString();
-      const isCustomer = chat.customer && chat.customer.toString() === userId.toString();
+      // Debug: log chat worker and customer
+
+      // Check if user is the customer
+      const isCustomer = chat.customer && chat.customer._id && chat.customer._id.toString() === userId.toString();
+
+      // Check if user is the worker (by user id, not worker profile id)
+      let isWorker = false;
+      if (chat.worker && chat.worker.user) {
+        isWorker = chat.worker.user.toString() === userId.toString();
+      }
+
+      // Debug: log access check
+
       if (!isWorker && !isCustomer) {
+        console.warn('Access denied for user:', userId, 'on chat:', chatId);
         return res.status(403).json({ message: 'Access denied' });
       }
 
-      // Mark specified messages as read
-      await Chat.updateOne(
+      // Defensive: check messageIds
+      if (!Array.isArray(messageIds) || messageIds.length === 0) {
+        console.warn('No messageIds provided to mark as read');
+        return res.status(400).json({ message: 'No messageIds provided' });
+      }
+
+      // Mark specified messages as read (only those not sent by the current user)
+      const updateResult = await Chat.updateOne(
         { _id: chatId },
         {
           $set: {
@@ -388,13 +413,16 @@ const chatController = {
           }
         },
         {
-          arrayFilters: [{
-            'elem._id': { $in: messageIds },
-            'elem.sender': { $ne: userId }
-          }],
+          arrayFilters: [
+            {
+              'elem._id': { $in: messageIds },
+              'elem.sender': { $ne: userId }
+            }
+          ],
           multi: true
         }
       );
+
 
       res.status(200).json({ message: 'Messages marked as read' });
     } catch (error) {
@@ -402,6 +430,8 @@ const chatController = {
       res.status(500).json({ message: 'Internal server error' });
     }
   },
+
+  // ...existing code...
 
   // Archive chat
   archiveChat: async (req, res) => {

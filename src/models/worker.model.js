@@ -8,7 +8,6 @@ const workerProfileSchema = new mongoose.Schema({
   bio: { type: String },
   services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ServiceCategory' }],
   Skills: [{ type: String }],
-  ProfileImage: { type: String, default: null }, // URL to profile image
   profession: { type: String, required: true },
   experience: { type: Number, default: 0 }, // in years
   emergencyService: { type: Boolean, default: false }, // Whether worker provides emergency services
@@ -51,7 +50,8 @@ const workerProfileSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 
-workerProfileSchema.index({ 'ServiceAreas.location': '2dsphere' });
+workerProfileSchema.index({ 'ServiceArea.location': '2dsphere' });
+
 
 
 module.exports = mongoose.model('WorkerProfile', workerProfileSchema);
