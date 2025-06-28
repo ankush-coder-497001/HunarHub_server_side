@@ -285,7 +285,6 @@ const ReviewController = {
       ]);
 
       if (!reviews || reviews.length === 0) {
-        console.log('No reviews found after aggregation');
         return res.status(404).json({ message: 'No reviews found' });
       }
 

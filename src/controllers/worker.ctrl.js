@@ -62,8 +62,14 @@ const WorkerController = {
       }
 
       const serviceDocs = await Promise.all(
-        defaultServices.map(name =>
-          new ServiceModel({ name }).save()
+        defaultServices.map(async name => {
+          const existingService = await ServiceModel.findOne({ name });
+          if (existingService) {
+            return existingService; // If service already exists, return it
+          }
+          // If service does not exist, create a new one
+          return new ServiceModel({ name }).save();
+        }
         )
       )
 
