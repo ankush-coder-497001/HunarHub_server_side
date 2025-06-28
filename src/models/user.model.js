@@ -26,6 +26,7 @@ const userSchema = new mongoose.Schema({
     },
     coordinates: { type: [Number], index: '2dsphere' } // [longitude, latitude]
   },
+  fcmToken: { type: String },
   isVerified: { type: Boolean, default: false },
   isBlocked: { type: Boolean, default: false },
   isActive: { type: Boolean, default: true }

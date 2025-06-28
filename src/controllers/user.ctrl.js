@@ -2,6 +2,7 @@ const userModel = require("../models/user.model");
 const workerModel = require("../models/worker.model");
 const EmailService = require('../services/email.svc')
 const bcrypt = require("bcryptjs");
+const sendPushNotification = require("../services/Message.svc");
 const UserController = {
   register: async (req, res) => {
     try {
@@ -101,8 +102,10 @@ const UserController = {
       user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
       await user.save();
       const message = `Your OTP is ${otp}. It is valid for 10 minutes.`;
-      await EmailService.SendOTP(email, message);
-      res.status(200).json({ message: "OTP sent successfully" });
+      await EmailService.SendOTP(email, message).catch((error) => {
+        console.error('Error sending OTP email:', error);
+      });
+
     } catch (error) {
       console.log(error);
       res.status(500).json({ message: error.message });
@@ -318,6 +321,23 @@ const UserController = {
     } catch (error) {
       console.log(error);
       res.status(500).json({ message: error.message });
+    }
+  },
+  SaveFCMToken: async (req, res) => {
+    console.log("SaveFCMToken called");
+    try {
+      const { userId } = req.user;
+      const { fcmToken } = req.body;
+      if (!userId || !fcmToken) {
+        return res.status(400).json({ message: "User ID and FCM token are required" });
+      }
+      const user = await userModel.findByIdAndUpdate(userId, { fcmToken });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.status(200).json({ message: "FCM token saved successfully", user });
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
     }
   }
 }

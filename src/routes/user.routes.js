@@ -12,6 +12,7 @@ router.post('/send-otp', userController.sendOtp);
 router.post('/verify-otp', userController.verifyOtp);
 router.post('/forgot-password', userController.forgotPassword);
 router.post('/reset-password', Auth, userController.resetPassword);
+router.put('/update-fcm-token', Auth, userController.SaveFCMToken);
 
 //user profile routes (can use for both worker and customer)
 router.get('/profile', Auth, userController.profile);

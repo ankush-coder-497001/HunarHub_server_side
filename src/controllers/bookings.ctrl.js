@@ -3,7 +3,8 @@ const UserModel = require('../models/user.model');
 const WorkerModel = require('../models/worker.model');
 const ServiceModel = require('../models/service.model');
 const chatModel = require('../models/chat.model');
-const emailServices = require('../services/email.svc')
+const emailServices = require('../services/email.svc');
+const sendPushNotification = require('../services/Message.svc');
 const BookingController = {
   createBooking: async (req, res) => {
     const session = await BookingModel.startSession();
@@ -122,6 +123,9 @@ const BookingController = {
         console.error('Error sending booking request email:', error);
       });
 
+
+      await sendPushNotification(worker.user._id, 'New Booking Request', `You have a new booking request for ${service.name} on ${bookingDate.toISOString().split('T')[0]} at ${time}.`).catch((err) => console.error('error sending push notification for new booking ', err));
+
       res.status(201).json({ message: 'Booking created successfully', booking: booking[0] });
 
     } catch (error) {
@@ -233,12 +237,17 @@ const BookingController = {
         ).catch((error) => {
           console.error('Error sending booking confirmation email:', error);
         });
+
+        await sendPushNotification(booking.customer._id, 'Booking Accepted', `Your booking for ${booking.serviceDetails.service.name} on ${booking.date.toISOString().split('T')[0]} at ${booking.time} has been accepted by ${booking.worker.user.name}.`).catch((err) => console.error('error sending push notification for booking acceptance ', err));
       } else if (status === 'completed') {
         booking.isActive = false; // Mark booking as inactive if completed
         const chat = await chatModel.findOneAndDelete({ booking: booking._id });
         if (chat) {
           console.log('Chat deleted for completed booking:', booking._id);
         }
+        await sendPushNotification(booking.customer._id, 'Booking Completed', `Your booking for ${booking.serviceDetails.service.name} on ${booking.date.toISOString().split('T')[0]} at ${booking.time} has been completed.`).catch((err) => console.error('error sending push notification for booking completion ', err));
+        //also notify worker about completion
+        await sendPushNotification(booking.worker._id, 'Booking Completed', `Your booking for ${booking.serviceDetails.service.name} on ${booking.date.toISOString().split('T')[0]} at ${booking.time} has been completed.`).catch((err) => console.error('error sending push notification for booking completion ', err));
       } else if (status === 'cancelled') {
         booking.status = 'cancelled';
         booking.isActive = false;
@@ -259,6 +268,9 @@ const BookingController = {
         ).catch((error) => {
           console.error('Error sending booking cancellation email:', error);
         });
+        await sendPushNotification(booking.customer._id, 'Booking Cancelled', `Your booking for ${booking.serviceDetails.service.name} on ${booking.date.toISOString().split('T')[0]} at ${booking.time} has been cancelled.`).catch((err) => console.error('error sending push notification for booking cancellation ', err));
+        // Notify worker about cancellation
+        await sendPushNotification(booking.worker._id, 'Booking Cancelled', `Your booking for ${booking.serviceDetails.service.name} on ${booking.date.toISOString().split('T')[0]} at ${booking.time} has been cancelled by.`).catch((err) => console.error('error sending push notification for booking cancellation ', err));
         return res.status(200).json({ message: 'Booking cancelled successfully' });
       }
       await booking.save();
@@ -371,6 +383,9 @@ const BookingController = {
       booking.date = parsedDate;
       booking.time = newTime;
       await booking.save();
+
+      await sendPushNotification(booking.customer._id, 'Booking Rescheduled', `Your booking for ${booking.serviceDetails.service.name} has been rescheduled to ${newDate} at ${newTime}.`).catch((err) => console.error('error sending push notification for booking reschedule ', err));
+      await sendPushNotification(booking.worker._id, 'Booking Rescheduled', `Your booking for ${booking.serviceDetails.service.name} has been rescheduled to ${newDate} at ${newTime}.`).catch((err) => console.error('error sending push notification for booking reschedule ', err));
 
       return res.status(200).json({
         message: 'Booking rescheduled successfully',

@@ -8,7 +8,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.ORIGIN || 'http://localhost:5173',
+    origin: process.env.ORIGIN || ['http://localhost:5173', 'http://localhost:4173'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -22,7 +22,7 @@ const io = new Server(httpServer, {
 });
 
 //middleware
-const ORIGIN = process.env.ORIGIN || 'http://localhost:5173';
+const ORIGIN = process.env.ORIGIN || ['http://localhost:5173', 'http://localhost:4173'];
 app.use(cors({
   origin: ORIGIN,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -57,6 +57,7 @@ const User = require('./models/user.model');
 const WorkerProfile = require('./models/worker.model');
 const Booking = require('./models/booking.model');
 const jwt = require('jsonwebtoken');
+const sendPushNotification = require('./services/Message.svc');
 
 // Socket.IO middleware for authentication
 io.use(async (socket, next) => {
@@ -241,6 +242,23 @@ io.on('connection', (socket) => {
         }
       };
 
+      const booking = await Booking.findById(bookingId)
+        .populate({
+          path: 'worker',
+          select: 'user',
+          populate: {
+            path: 'user',
+          }
+        })
+        .populate('customer');
+
+      // If the sender is a worker, also notify the customer
+      if (socket.userRole === 'worker') {
+        await sendPushNotification(booking.customer._id, 'New Message', `You have a new message from ${user.name}: ${content}`).catch((err) => console.error('error sending push notification for new message ', err));
+      } else {
+        // If the sender is a customer, notify the worker
+        await sendPushNotification(booking.worker.user._id, 'New Message', `You have a new message from ${user.name}: ${content}`).catch((err) => console.error('error sending push notification for new message ', err));
+      }
 
       // Emit the properly formatted message
       io.to(`chat_${bookingId}`).emit('new_message', messageToSend);
