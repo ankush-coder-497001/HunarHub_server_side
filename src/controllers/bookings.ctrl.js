@@ -219,7 +219,12 @@ const BookingController = {
       if (!status) {
         return res.status(400).json({ message: 'Status is required' });
       }
-      const booking = await BookingModel.findById(bookingId).populate('customer').populate('worker').populate('serviceDetails.service');
+      const booking = await BookingModel.findById(bookingId).populate('customer').populate({
+        path: 'worker',
+        populate: {
+          path: 'user',
+        }
+      }).populate('serviceDetails.service');
       if (!booking) {
         return res.status(404).json({ message: 'Booking not found' });
       }
