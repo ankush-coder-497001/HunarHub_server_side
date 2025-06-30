@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+const DeployedURL = 'https://hunarhub-io.netlify.app/'
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -343,7 +344,7 @@ Notes: ${customerNotes || 'N/A'}`;
             </table>
 
             <p>If you have questions or want to modify your booking, feel free to contact us.</p>
-            <a href="#" class="cta-button">Visit HunarHub</a>
+            <a href=${DeployedURL} class="cta-button">Visit HunarHub</a>
           </div>
           <div class="footer">
             &copy; ${new Date().getFullYear()} HunarHub. All rights reserved.
@@ -560,7 +561,7 @@ Customer: ${name}, ${phone}
                 <tr><td class="label">Customer:</td><td>${name}, ${phone}</td></tr>
               </table>
 
-              <a href="#" class="cta-button">View Booking</a>
+              <a href=${DeployedURL} class="cta-button">View Booking</a>
             </div>
             <div class="footer">
               &copy; ${new Date().getFullYear()} HunarHub. All rights reserved.
@@ -673,7 +674,7 @@ Customer: ${name}, ${phone}
                 <tr><td class="label">Customer:</td><td>${name}, ${phone}</td></tr>
               </table>
 
-              <a href="#" class="cta-button">View Booking</a>
+              <a href=${DeployedURL} class="cta-button">View Booking</a>
             </div>
             <div class="footer">
               &copy; ${new Date().getFullYear()} HunarHub. All rights reserved.
