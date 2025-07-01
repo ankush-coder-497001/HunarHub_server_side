@@ -54,26 +54,23 @@ const WorkerController = {
           startTime: value.start,
           endTime: value.end,
         }));
-
+      let services = [];
       //create service array from profession
       const defaultServices = await getServicesByProfession(profession);
-      if (!defaultServices || defaultServices.length === 0) {
-        return res.status(400).json({ message: "Invalid profession or no services found for the profession" });
+
+      if (defaultServices && defaultServices.length > 0) {
+        const serviceDocs = await Promise.all(
+          defaultServices.map(async name => {
+            const existingService = await ServiceModel.findOne({ name });
+            if (existingService) {
+              return existingService; // If service already exists, return it
+            }
+            // If service does not exist, create a new one
+            return new ServiceModel({ name }).save();
+          })
+        );
+        services = serviceDocs.map(service => service._id);
       }
-
-      const serviceDocs = await Promise.all(
-        defaultServices.map(async name => {
-          const existingService = await ServiceModel.findOne({ name });
-          if (existingService) {
-            return existingService; // If service already exists, return it
-          }
-          // If service does not exist, create a new one
-          return new ServiceModel({ name }).save();
-        }
-        )
-      )
-
-      const services = serviceDocs.map(service => service._id);
 
       const workerProfile = {
         user: workerId,
