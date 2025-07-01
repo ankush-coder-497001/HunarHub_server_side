@@ -17,6 +17,7 @@ HunarHub is a worker-first platform connecting local blue-collar workers with cu
 - ✅ Node-cron for:
   - Booking reminders
   - Auto-cancel unconfirmed bookings
+  - Auto-cancel unresponsed bookings
 - ✅ Proper indexing on MongoDB for fast queries
 - ✅ Email OTP flow for Password Recovery
 - ✅ Admin panel API for managing users, workers, reviews, etc.
