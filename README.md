@@ -51,4 +51,4 @@ HunarHub is a worker-first platform connecting local blue-collar workers with cu
 git clone https://github.com/YourUsername/hunarhub-backend.git
 cd hunarhub-backend
 npm install
-npm start
+npx nodemon || npm start
